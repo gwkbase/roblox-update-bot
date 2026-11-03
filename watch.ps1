@@ -33,7 +33,7 @@ function Send-Notice([string]$message, [string]$eventKey) {
         enforce_nonce = $true
     } | ConvertTo-Json -Compress -Depth 4
     Invoke-RestMethod -Uri "https://discord.com/api/v10/channels/$channel/messages" -Method Post `
-        -Headers @{ Authorization = "Bot $token" } -ContentType 'application/json; charset=utf-8' `
+        -UserAgent 'DiscordBot (https://github.com/gwkbase/roblox-update-bot, 1.0)' -Headers @{ Authorization = "Bot $token" } -ContentType 'application/json; charset=utf-8' `
         -Body $body -TimeoutSec 20 | Out-Null
 }
 
