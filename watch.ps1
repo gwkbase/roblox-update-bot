@@ -47,6 +47,7 @@ function Save-State {
 do {
     $wait = $IntervalSeconds
     try {
+        $stage = 'Roblox LIVE lookup'
         $live = Invoke-RestMethod -Uri $liveUrl -TimeoutSec 20
         if ($live.version -notmatch '^\d+\.\d+\.\d+\.\d+$' -or
             $live.clientVersionUpload -notmatch '^version-[0-9a-f]+$') {
@@ -55,17 +56,20 @@ do {
         $observed = [DateTimeOffset]::UtcNow.ToUnixTimeSeconds()
         if ($state.live -ne $live.clientVersionUpload) {
             $title = if ($state.live) { 'Roblox Windows Player updated' } else { 'Roblox Windows Player is live' }
+            $stage = 'Discord LIVE alert'
             Send-Notice "**$title**`nBuild **$($live.version)** ($($live.clientVersionUpload))`nObserved <t:${observed}:F>." "live:$($state.live):$($live.clientVersionUpload)"
             $state.live = $live.clientVersionUpload
             Save-State
         }
 
+        $stage = 'Roblox deployment history lookup'
         $history = (Invoke-WebRequest -Uri $historyUrl -TimeoutSec 20).Content
         $candidates = [regex]::Matches($history, '(?m)^New WindowsPlayer \S+ at [^\r`n]+?, file version:\s*(\d+),\s*(\d+),\s*(\d+),\s*(\d+),')
         $upcoming = $candidates | ForEach-Object {
             [version] (($_.Groups[1..4] | ForEach-Object Value) -join '.')
         } | Where-Object { $_ -gt [version]$live.version } | Sort-Object -Descending | Select-Object -First 1
         if ($upcoming -and (!$state.upcoming -or $upcoming -gt [version]$state.upcoming)) {
+            $stage = 'Discord upcoming build alert'
             Send-Notice "**Newer Roblox Windows build spotted**`nBuild **$upcoming** appeared in public deployment history. LIVE is **$($live.version)**.`nObserved <t:${observed}:F>. Release timing is unconfirmed." "upcoming:$upcoming"
             $state.upcoming = $upcoming.ToString()
             Save-State
@@ -80,7 +84,12 @@ do {
             }
             $wait = [Math]::Max($wait, [Math]::Ceiling($retry))
         }
-        if ($status) { Write-Warning "Poll failed with HTTP $status. Check Discord permissions if this persists." }
+        if ($status) {
+            $code = $null
+            try { $code = [int](ConvertFrom-Json $_.ErrorDetails.Message).code } catch {}
+            $detail = if ($null -ne $code -and $stage -like 'Discord*') { ", Discord code $code" } else { '' }
+            Write-Warning "$stage failed (HTTP $status$detail)."
+        }
         else { Write-Warning "Poll failed: $($_.Exception.GetType().Name)." }
         if ($Once) { exit 1 }
     }

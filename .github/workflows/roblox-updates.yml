@@ -4,6 +4,9 @@ on:
   schedule:
     - cron: "2-57/5 * * * *"
   workflow_dispatch:
+  push:
+    branches: [main]
+    paths: [watch.ps1, .github/workflows/roblox-updates.yml]
 
 permissions:
   contents: write
