@@ -22,6 +22,8 @@ if (!$DryRun -and (Test-Path -LiteralPath $statePath)) {
 }
 
 function Send-Notice([hashtable]$embed, [string]$eventKey) {
+    $embed.author = @{ name = 'ROBLOX UPDATE TRACKER' }
+    $embed.footer = @{ text = 'Windows Player | Detected at' }
     if ($DryRun) {
         Write-Host ($embed | ConvertTo-Json -Depth 5)
         return
@@ -58,28 +60,28 @@ do {
         if ($TestAlert) {
             $stage = 'Discord test alert'
             Send-Notice @{
-                title = 'Roblox update bot test'
-                description = 'Manual delivery test using the current live build.'
-                color = 0x5865F2
+                title = 'Delivery test'
+                description = 'The tracker is reporting the current public Windows build.'
+                color = 0x007AFF
                 fields = @(
                     @{ name = 'Live version'; value = $live.version; inline = $true }
-                    @{ name = 'Build ID'; value = $live.clientVersionUpload; inline = $true }
+                    @{ name = 'Build ID'; value = ('`{0}`' -f $live.clientVersionUpload); inline = $true }
                 )
                 timestamp = $observed
             } "test:$([guid]::NewGuid())"
             return
         }
         if ($state.live -ne $live.clientVersionUpload) {
-            $title = if ($state.live) { 'Roblox Windows Player updated' } else { 'Roblox Windows Player is live' }
+            $title = if ($state.live) { 'New Windows build is live' } else { 'Current Windows build' }
             $stage = 'Discord LIVE alert'
             Send-Notice @{
                 title = $title
+                description = 'Available on the public Roblox Windows release channel.'
                 color = 0x248046
                 fields = @(
                     @{ name = 'Live version'; value = $live.version; inline = $true }
-                    @{ name = 'Build ID'; value = $live.clientVersionUpload; inline = $true }
+                    @{ name = 'Build ID'; value = ('`{0}`' -f $live.clientVersionUpload); inline = $true }
                 )
-                footer = @{ text = 'Roblox Windows Player • Detected' }
                 timestamp = $observed
             } "live:$($state.live):$($live.clientVersionUpload)"
             $state.live = $live.clientVersionUpload
@@ -95,14 +97,13 @@ do {
         if ($upcoming -and (!$state.upcoming -or $upcoming -gt [version]$state.upcoming)) {
             $stage = 'Discord upcoming build alert'
             Send-Notice @{
-                title = 'Newer Roblox Windows build spotted'
+                title = 'Upcoming Windows build detected'
                 description = 'This build appeared in public deployment history. Release timing is unconfirmed.'
-                color = 0x5865F2
+                color = 0xBF8700
                 fields = @(
                     @{ name = 'Candidate version'; value = $upcoming.ToString(); inline = $true }
                     @{ name = 'Live version'; value = $live.version; inline = $true }
                 )
-                footer = @{ text = 'Roblox Windows Player • Detected' }
                 timestamp = $observed
             } "upcoming:$upcoming"
             $state.upcoming = $upcoming.ToString()
