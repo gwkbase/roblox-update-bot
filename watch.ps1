@@ -22,7 +22,8 @@ if (!$DryRun -and (Test-Path -LiteralPath $statePath)) {
 }
 
 function Send-Notice([hashtable]$embed, [string]$eventKey) {
-    $embed.author = @{ name = 'ROBLOX UPDATE TRACKER' }
+    $banner = ($eventKey -split ':', 2)[0]
+    $embed.image = @{ url = "https://raw.githubusercontent.com/gwkbase/roblox-update-bot/main/assets/$banner.png" }
     $embed.footer = @{ text = 'Windows Player | Detected at' }
     if ($DryRun) {
         Write-Host ($embed | ConvertTo-Json -Depth 5)
@@ -60,11 +61,11 @@ do {
         if ($TestAlert) {
             $stage = 'Discord test alert'
             Send-Notice @{
-                title = 'Delivery test'
+                title = 'Test notification'
                 description = 'The tracker is reporting the current public Windows build.'
                 color = 0x007AFF
                 fields = @(
-                    @{ name = 'Live version'; value = $live.version; inline = $true }
+                    @{ name = 'Live version'; value = ('**{0}**' -f $live.version); inline = $true }
                     @{ name = 'Build ID'; value = ('`{0}`' -f $live.clientVersionUpload); inline = $true }
                 )
                 timestamp = $observed
@@ -79,7 +80,7 @@ do {
                 description = 'Available on the public Roblox Windows release channel.'
                 color = 0x248046
                 fields = @(
-                    @{ name = 'Live version'; value = $live.version; inline = $true }
+                    @{ name = 'Live version'; value = ('**{0}**' -f $live.version); inline = $true }
                     @{ name = 'Build ID'; value = ('`{0}`' -f $live.clientVersionUpload); inline = $true }
                 )
                 timestamp = $observed
@@ -101,8 +102,8 @@ do {
                 description = 'This build appeared in public deployment history. Release timing is unconfirmed.'
                 color = 0xBF8700
                 fields = @(
-                    @{ name = 'Candidate version'; value = $upcoming.ToString(); inline = $true }
-                    @{ name = 'Live version'; value = $live.version; inline = $true }
+                    @{ name = 'Candidate version'; value = ('**{0}**' -f $upcoming); inline = $true }
+                    @{ name = 'Live version'; value = ('**{0}**' -f $live.version); inline = $true }
                 )
                 timestamp = $observed
             } "upcoming:$upcoming"
