@@ -2,7 +2,8 @@
 param(
     [ValidateRange(60, 86400)][int]$IntervalSeconds = 120,
     [switch]$DryRun,
-    [switch]$Once
+    [switch]$Once,
+    [switch]$TestAlert
 )
 
 $ErrorActionPreference = 'Stop'
@@ -54,6 +55,20 @@ do {
             throw 'Unexpected Roblox LIVE response.'
         }
         $observed = [DateTimeOffset]::UtcNow.ToString('o')
+        if ($TestAlert) {
+            $stage = 'Discord test alert'
+            Send-Notice @{
+                title = 'Roblox update bot test'
+                description = 'Manual delivery test using the current live build.'
+                color = 0x5865F2
+                fields = @(
+                    @{ name = 'Live version'; value = $live.version; inline = $true }
+                    @{ name = 'Build ID'; value = $live.clientVersionUpload; inline = $true }
+                )
+                timestamp = $observed
+            } "test:$([guid]::NewGuid())"
+            return
+        }
         if ($state.live -ne $live.clientVersionUpload) {
             $title = if ($state.live) { 'Roblox Windows Player updated' } else { 'Roblox Windows Player is live' }
             $stage = 'Discord LIVE alert'

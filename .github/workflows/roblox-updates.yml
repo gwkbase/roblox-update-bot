@@ -27,7 +27,8 @@ jobs:
         env:
           DISCORD_CHANNEL_ID: "1567254518796648468"
           DISCORD_BOT_TOKEN: ${{ secrets.DISCORD_BOT_TOKEN }}
-        run: ./watch.ps1 -Once
+        run: |
+          ./watch.ps1 -Once -TestAlert:($env:GITHUB_EVENT_NAME -eq 'workflow_dispatch')
       - name: Save delivered alert state
         if: always()
         shell: bash
