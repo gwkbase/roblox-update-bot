@@ -20,18 +20,18 @@ if (!$DryRun -and (Test-Path -LiteralPath $statePath)) {
     $state = Get-Content -Raw -LiteralPath $statePath | ConvertFrom-Json -AsHashtable
 }
 
-function Send-Notice([string]$message, [string]$eventKey) {
+function Send-Notice([hashtable]$embed, [string]$eventKey) {
     if ($DryRun) {
-        Write-Host $message
+        Write-Host ($embed | ConvertTo-Json -Depth 5)
         return
     }
     $hash = [Security.Cryptography.SHA256]::HashData([Text.Encoding]::UTF8.GetBytes($eventKey))
     $body = @{
-        content = $message
+        embeds = @($embed)
         allowed_mentions = @{ parse = @() }
         nonce = [Convert]::ToHexString($hash).Substring(0, 24)
         enforce_nonce = $true
-    } | ConvertTo-Json -Compress -Depth 4
+    } | ConvertTo-Json -Compress -Depth 6
     Invoke-RestMethod -Uri "https://discord.com/api/v10/channels/$channel/messages" -Method Post `
         -UserAgent 'DiscordBot (https://github.com/gwkbase/roblox-update-bot, 1.0)' -Headers @{ Authorization = "Bot $token" } -ContentType 'application/json; charset=utf-8' `
         -Body $body -TimeoutSec 20 | Out-Null
@@ -53,11 +53,20 @@ do {
             $live.clientVersionUpload -notmatch '^version-[0-9a-f]+$') {
             throw 'Unexpected Roblox LIVE response.'
         }
-        $observed = [DateTimeOffset]::UtcNow.ToUnixTimeSeconds()
+        $observed = [DateTimeOffset]::UtcNow.ToString('o')
         if ($state.live -ne $live.clientVersionUpload) {
             $title = if ($state.live) { 'Roblox Windows Player updated' } else { 'Roblox Windows Player is live' }
             $stage = 'Discord LIVE alert'
-            Send-Notice "**$title**`nBuild **$($live.version)** ($($live.clientVersionUpload))`nObserved <t:${observed}:F>." "live:$($state.live):$($live.clientVersionUpload)"
+            Send-Notice @{
+                title = $title
+                color = 0x248046
+                fields = @(
+                    @{ name = 'Live version'; value = $live.version; inline = $true }
+                    @{ name = 'Build ID'; value = $live.clientVersionUpload; inline = $true }
+                )
+                footer = @{ text = 'Roblox Windows Player • Detected' }
+                timestamp = $observed
+            } "live:$($state.live):$($live.clientVersionUpload)"
             $state.live = $live.clientVersionUpload
             Save-State
         }
@@ -70,7 +79,17 @@ do {
         } | Where-Object { $_ -gt [version]$live.version } | Sort-Object -Descending | Select-Object -First 1
         if ($upcoming -and (!$state.upcoming -or $upcoming -gt [version]$state.upcoming)) {
             $stage = 'Discord upcoming build alert'
-            Send-Notice "**Newer Roblox Windows build spotted**`nBuild **$upcoming** appeared in public deployment history. LIVE is **$($live.version)**.`nObserved <t:${observed}:F>. Release timing is unconfirmed." "upcoming:$upcoming"
+            Send-Notice @{
+                title = 'Newer Roblox Windows build spotted'
+                description = 'This build appeared in public deployment history. Release timing is unconfirmed.'
+                color = 0x5865F2
+                fields = @(
+                    @{ name = 'Candidate version'; value = $upcoming.ToString(); inline = $true }
+                    @{ name = 'Live version'; value = $live.version; inline = $true }
+                )
+                footer = @{ text = 'Roblox Windows Player • Detected' }
+                timestamp = $observed
+            } "upcoming:$upcoming"
             $state.upcoming = $upcoming.ToString()
             Save-State
         }
